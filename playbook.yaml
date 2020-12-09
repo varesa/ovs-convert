@@ -23,7 +23,9 @@
 
   - set_fact:
       vlan_id: "{{ ansible_default_ipv4.interface.split('.')[1] }}"
-    when: '"." in ansible_default_ipv4.interface'
+    when: 
+    - '"." in ansible_default_ipv4.interface'
+    - ansible_default_ipv4.interface != "management"
 
   - openvswitch.openvswitch.openvswitch_port:
       bridge: br-ex
@@ -31,6 +33,7 @@
       tag: "{{ vlan_id | default(omit) }}"
       state: present
       set: interface management type=internal
+    when: ansible_default_ipv4.interface != "management"
 
   - openvswitch.openvswitch.openvswitch_bond:
       bridge: br-ex
@@ -67,6 +70,7 @@
 
   - command: "ip addr del {{ ansible_default_ipv4.address }}/24 dev {{ ansible_default_ipv4.interface }}"
     failed_when: false
+    when: ansible_default_ipv4.interface != "management"
 
   - systemd:
       name: networking.service
