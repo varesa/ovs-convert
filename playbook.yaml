@@ -1,0 +1,73 @@
+---
+- hosts: hypervisor
+  tasks:
+
+  - name: Install repos 
+    dnf:
+      name:
+      - http://mirror.gnu.fi/centos/8/extras/x86_64/os/Packages/centos-release-nfv-common-1-1.el8.noarch.rpm
+      - http://mirror.gnu.fi/centos/8/extras/x86_64/os/Packages/centos-release-nfv-openvswitch-1-1.el8.noarch.rpm
+
+  - name: Install OVS
+    dnf:
+      name:
+      - openvswitch2.13.x86_64
+
+  - systemd:
+      name: openvswitch
+      state: started
+      enabled: true
+
+  - openvswitch.openvswitch.openvswitch_bridge:
+      bridge: br-ex
+
+  - set_fact:
+      vlan_id: "{{ ansible_default_ipv4.interface.split('.')[1] }}"
+    when: '"." in ansible_default_ipv4.interface'
+
+  - openvswitch.openvswitch.openvswitch_port:
+      bridge: br-ex
+      port: management
+      tag: "{{ vlan_id | default(omit) }}"
+      state: present
+      set: interface management type=internal
+
+  - openvswitch.openvswitch.openvswitch_bond:
+      bridge: br-ex
+      port: bond0
+      interfaces: "{{ ansible_interfaces | select('match', '^(eth|enp|ens)[a-z0-9]+$') | list }}"
+      state: present
+
+  - copy:
+      dest: "/etc/systemd/system/networking.service"
+      content: |
+        [Unit]
+        Description=Configure network interfaces
+        After=openvswitch.service
+        Before=network-online.target        
+
+        [Service]
+        Type=oneshot
+        {% for interface in ansible_interfaces | select('match', '^(eth|enp|ens)[a-z0-9]+$') | list %}
+        ExecStart=/sbin/ip link set {{ interface }} up
+        {% endfor %}
+        ExecStart=/sbin/ip link set management up
+        ExecStart=/sbin/ip address add {{ ansible_default_ipv4.address }}/24 dev management
+        ExecStart=/sbin/ip route add default via {{ ansible_default_ipv4.gateway }}
+        
+        [Install]
+        RequiredBy=multi-user.target
+
+  - systemd:
+      name: NetworkManager
+      state: stopped
+      enabled: false
+
+  - systemd:
+      name: networking.service
+      state: started
+      enabled: true
+
+ # - command: "ip addr del {{ ansible_default_ipv4.address }}/24 dev {{ ansible_default_ipv4.interface }}"
+ # - command: "ip addr add {{ ansible_default_ipv4.address }}/24 dev management"
+ # - command: "ip link set management up"
