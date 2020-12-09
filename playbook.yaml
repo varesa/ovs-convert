@@ -55,6 +55,7 @@
         # Allow failure in case addresses already exist
         ExecStart=-/sbin/ip address add {{ ansible_default_ipv4.address }}/24 dev management
         ExecStart=-/sbin/ip route add default via {{ ansible_default_ipv4.gateway }}
+        ExecStart=-/usr/bin/arping -U -c 3 -I management {{ ansible_default_ipv4.address }}
         
         [Install]
         RequiredBy=multi-user.target
