@@ -48,12 +48,13 @@
 
         [Service]
         Type=oneshot
-        {% for interface in ansible_interfaces | select('match', '^(eth|enp|ens)[a-z0-9]+$') | list %}
+        {% for interface in ansible_interfaces | select('match', '^(eth|enp|ens|eno)[a-z0-9]+$') | list %}
         ExecStart=/sbin/ip link set {{ interface }} up
         {% endfor %}
         ExecStart=/sbin/ip link set management up
-        ExecStart=/sbin/ip address add {{ ansible_default_ipv4.address }}/24 dev management
-        ExecStart=/sbin/ip route add default via {{ ansible_default_ipv4.gateway }}
+        # Allow failure in case addresses already exist
+        ExecStart=-/sbin/ip address add {{ ansible_default_ipv4.address }}/24 dev management
+        ExecStart=-/sbin/ip route add default via {{ ansible_default_ipv4.gateway }}
         
         [Install]
         RequiredBy=multi-user.target
@@ -63,11 +64,13 @@
       state: stopped
       enabled: false
 
+  - command: "ip addr del {{ ansible_default_ipv4.address }}/24 dev {{ ansible_default_ipv4.interface }}"
+    failed_when: false
+
   - systemd:
       name: networking.service
       state: started
       enabled: true
 
- # - command: "ip addr del {{ ansible_default_ipv4.address }}/24 dev {{ ansible_default_ipv4.interface }}"
  # - command: "ip addr add {{ ansible_default_ipv4.address }}/24 dev management"
  # - command: "ip link set management up"
