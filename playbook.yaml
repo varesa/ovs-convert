@@ -35,7 +35,7 @@
   - openvswitch.openvswitch.openvswitch_bond:
       bridge: br-ex
       port: bond0
-      interfaces: "{{ ansible_interfaces | select('match', '^(eth|enp|ens)[a-z0-9]+$') | list }}"
+      interfaces: "{{ ansible_interfaces | select('match', '^(eth|enp|ens|eno)[a-z0-9]+$') | list }}"
       state: present
 
   - copy:
