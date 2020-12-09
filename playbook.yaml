@@ -62,6 +62,10 @@
         
         [Install]
         RequiredBy=multi-user.target
+    register: unitfile
+
+  - command: systemctl daemon-reload
+    when: unitfile.changed
 
   - systemd:
       name: NetworkManager
